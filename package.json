@@ -1,0 +1,16 @@
+{
+  "name": "auto_video",
+  "version": "0.1.0",
+  "description": "Automatically make videos from reddit threads",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Ajay Ramachandran",
+  "license": "MIT",
+  "dependencies": {
+    "bad-words": "^3.0.2",
+    "ibm-watson": "^4.1.2",
+    "request": "^2.88.0"
+  }
+}
