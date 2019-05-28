@@ -1,6 +1,7 @@
 const fs = require('fs');
 const requests = require("request");
 var text2png = require('text2png');
+var Jimp = require('jimp');
 
 const TextToSpeechV1 = require("ibm-watson/text-to-speech/v1");
 
@@ -10,10 +11,10 @@ var customFilter = new Filter({ placeHolder: '+-~12'});
 
 let config = JSON.parse(fs.readFileSync('config.json'));
 
-const textToSpeech = new TextToSpeechV1({
-    iam_apikey: config.apiKey,
-    url: 'https://gateway-wdc.watsonplatform.net/text-to-speech/api'
-});
+// const textToSpeech = new TextToSpeechV1({
+//     iam_apikey: config.apiKey,
+//     url: 'https://gateway-wdc.watsonplatform.net/text-to-speech/api'
+// });
 
 requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(err, res, body) {
     body = JSON.parse(body);
@@ -35,24 +36,9 @@ requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(e
     let cleanText = getCleanText(posts[randomPostIndex].data.title);
     let displayText = getDisplayText(cleanText, posts[randomPostIndex].data);
 
-    //create image
-    fs.writeFile('processed/title.png', text2png(displayText, {color: 'white'}), function (err) {
-        if (err) console.log(err);
-    });
+    saveImage('processed/title.png', displayText);
 
-    let synthesizeParams = {
-        text: cleanText,
-        accept: 'audio/wav',
-        voice: 'en-US_MichaelVoice',
-    };
-
-    textToSpeech.synthesize(synthesizeParams)
-    .then(audio => {
-        audio.pipe(fs.createWriteStream('processed/title.wav'));
-    })
-    .catch(err => {
-        console.log('error:', err);
-    });
+    saveSpeech('processed/title.wav', cleanText)
 
     getComments(posts[randomPostIndex]);
 });
@@ -79,26 +65,51 @@ function getComments(post) {
             let cleanText = getCleanText(text);
             let displayText = getDisplayText(cleanText, comments[i].data);
 
-            //create image
-            fs.writeFile('processed/comment_' + i + '.png', text2png(displayText, {color: 'white'}), function (err) {
-                if (err) console.log(err);
-            });
+            saveImage('processed/comment_' + i + '.png', displayText);
+
+            //ffmpeg -f concat -i input.txt -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync vfr -pix_fmt yuv420p output.mp4
+            //ffmpeg -f concat -i input.txt -vsync vfr -pix_fmt yuv420p output.mp4
+            //crop all images to the same size?
     
-            let synthesizeParams = {
-                text: cleanText,
-                accept: 'audio/wav',
-                voice: 'en-US_MichaelVoice',
-            };
-        
-            textToSpeech.synthesize(synthesizeParams)
-            .then(audio => {
-                audio.pipe(fs.createWriteStream('processed/comment_' + i + '.wav'));
-            })
-            .catch(err => {
-                console.log('error:', err);
-            });
+            saveSpeech('processed/comment_' + i + '.wav', cleanText);
         }
     });
+}
+
+function saveImage(fileName, displayText) {
+    //create image
+    let options = {
+        color: 'white',
+        backgroundColor: 'black'
+    };
+
+    fs.writeFile(fileName, text2png(displayText, options), function (err) {
+        if (err) console.log(err);
+
+        //resize image
+        Jimp.read(fileName, (err, image) => {
+            if (err) throw err;
+            image
+            .contain(1920, 1080) // resize
+            .write(fileName); // save
+        });
+    });
+}
+
+function saveSpeech(fileName, cleanText) {
+    let synthesizeParams = {
+        text: cleanText,
+        accept: 'audio/wav',
+        voice: 'en-US_MichaelVoice',
+    };
+
+    // textToSpeech.synthesize(synthesizeParams)
+    // .then(audio => {
+    //     audio.pipe(fs.createWriteStream(fileName));
+    // })
+    // .catch(err => {
+    //     console.log('error:', err);
+    // });
 }
 
 function getCleanText(text) {
