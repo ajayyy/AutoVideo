@@ -2,6 +2,7 @@ const fs = require('fs');
 const requests = require("request");
 var text2png = require('text2png');
 var Jimp = require('jimp');
+var exec = require('child_process').exec;
 
 const TextToSpeechV1 = require("ibm-watson/text-to-speech/v1");
 
@@ -15,6 +16,10 @@ let config = JSON.parse(fs.readFileSync('config.json'));
 //     iam_apikey: config.apiKey,
 //     url: 'https://gateway-wdc.watsonplatform.net/text-to-speech/api'
 // });
+
+var imagesProcessed = 0;
+var soundProcessed = 0;
+var totalItems = -1;
 
 requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(err, res, body) {
     body = JSON.parse(body);
@@ -51,7 +56,11 @@ function getComments(post) {
 
         let comments = response[1].data.children;
 
-        for (let i = 0; i < Math.min(20, comments.length); i++) {
+        let commentAmount = Math.min(2, comments.length);
+
+        totalItems = commentAmount + 1;
+
+        for (let i = 0; i < commentAmount; i++) {
             let text = comments[i].data.body;
 
             var urls = text.match(/\bhttps?:\/\/\S+/gi);
@@ -69,7 +78,6 @@ function getComments(post) {
 
             //ffmpeg -f concat -i input.txt -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync vfr -pix_fmt yuv420p output.mp4
             //ffmpeg -f concat -i input.txt -vsync vfr -pix_fmt yuv420p output.mp4
-            //crop all images to the same size?
     
             saveSpeech('processed/comment_' + i + '.wav', cleanText);
         }
@@ -91,9 +99,19 @@ function saveImage(fileName, displayText) {
             if (err) throw err;
             image
             .contain(1920, 1080) // resize
-            .write(fileName); // save
+            .write(fileName, imageSaved); // save
         });
     });
+}
+
+function imageSaved() {
+    imagesProcessed++;
+
+    console.log(soundProcessed + " " + imagesProcessed + " " + totalItems)
+    //it is -1 for the title image
+    if (totalItems != -1 && imagesProcessed >= totalItems && soundProcessed >= totalItems) {
+        allProcessed();
+    }
 }
 
 function saveSpeech(fileName, cleanText) {
@@ -103,6 +121,8 @@ function saveSpeech(fileName, cleanText) {
         voice: 'en-US_MichaelVoice',
     };
 
+    soundSaved();
+
     // textToSpeech.synthesize(synthesizeParams)
     // .then(audio => {
     //     audio.pipe(fs.createWriteStream(fileName));
@@ -110,6 +130,45 @@ function saveSpeech(fileName, cleanText) {
     // .catch(err => {
     //     console.log('error:', err);
     // });
+}
+
+function soundSaved() {
+    soundProcessed++;
+
+    //it is -1 for the title image
+    if (totalItems != -1 && imagesProcessed >= totalItems && soundProcessed >= totalItems) {
+        allProcessed();
+    }
+}
+
+function allProcessed() {
+    //create input.txt
+    //this file will contain a list of file names with durations
+    let inputFileText = "file 'title.png'"
+    inputFileText += "\nduration 5"
+    for (let i = 0; i < totalItems; i++) {
+        inputFileText += "\nfile 'comment_" + i + ".png'";
+        inputFileText += "\nduration 5";
+
+        if (i == totalItems - 1) {
+            //add on the file name one more time, because the program requires it
+            inputFileText += "\nfile 'comment_" + i + ".png'";
+        }
+    }
+
+    fs.writeFile("./processed/input.txt", inputFileText, function(err) {
+        if (err) console.log(err);
+
+        exec('ffmpeg -f concat -i ./processed/input.txt -vsync vfr -pix_fmt yuv420p ./processed/output.mp4 -y',
+            function (error, stdout, stderr) {
+                console.log('stdout: ' + stdout);
+                console.log('stderr: ' + stderr);
+                if (error !== null) {
+                    console.log('exec error: ' + error);
+                }
+            }
+        );
+    });
 }
 
 function getCleanText(text) {
