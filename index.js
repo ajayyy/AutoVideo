@@ -3,6 +3,9 @@ const requests = require("request");
 var text2png = require('text2png');
 var Jimp = require('jimp');
 var exec = require('child_process').exec;
+const { getAudioDurationInSeconds } = require('get-audio-duration');
+
+const stream = require('stream');
 
 const TextToSpeechV1 = require("ibm-watson/text-to-speech/v1");
 
@@ -12,14 +15,16 @@ var customFilter = new Filter({ placeHolder: '+-~12'});
 
 let config = JSON.parse(fs.readFileSync('config.json'));
 
-// const textToSpeech = new TextToSpeechV1({
-//     iam_apikey: config.apiKey,
-//     url: 'https://gateway-wdc.watsonplatform.net/text-to-speech/api'
-// });
+const textToSpeech = new TextToSpeechV1({
+    iam_apikey: config.apiKey,
+    url: 'https://gateway-wdc.watsonplatform.net/text-to-speech/api'
+});
 
 var imagesProcessed = 0;
 var soundProcessed = 0;
 var totalItems = -1;
+//all voice lengths
+var audioStreamLengths = [];
 
 requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(err, res, body) {
     body = JSON.parse(body);
@@ -56,7 +61,7 @@ function getComments(post) {
 
         let comments = response[1].data.children;
 
-        let commentAmount = Math.min(2, comments.length);
+        let commentAmount = Math.min(30, comments.length);
 
         totalItems = commentAmount + 1;
 
@@ -121,15 +126,27 @@ function saveSpeech(fileName, cleanText) {
         voice: 'en-US_MichaelVoice',
     };
 
-    soundSaved();
+    textToSpeech.synthesize(synthesizeParams)
+    .then(audio => {
 
-    // textToSpeech.synthesize(synthesizeParams)
-    // .then(audio => {
-    //     audio.pipe(fs.createWriteStream(fileName));
-    // })
-    // .catch(err => {
-    //     console.log('error:', err);
-    // });
+        let writeStream = fs.createWriteStream(fileName);
+
+        writeStream.on('finish', function(){
+            getAudioDurationInSeconds(fileName).then((duration) => {
+                audioStreamLengths.push(duration);
+                console.log(fileName + " " + duration)
+    
+                soundSaved();
+            }).catch((err) => {
+                console.log(err);
+            });
+        });
+
+        audio.pipe(writeStream);
+    })
+    .catch(err => {
+        console.log('error:', err);
+    });
 }
 
 function soundSaved() {
@@ -145,10 +162,10 @@ function allProcessed() {
     //create input.txt
     //this file will contain a list of file names with durations
     let inputFileText = "file 'title.png'"
-    inputFileText += "\nduration 5"
-    for (let i = 0; i < totalItems; i++) {
+    inputFileText += "\nduration " + audioStreamLengths[0];
+    for (let i = 0; i < totalItems - 1; i++) {
         inputFileText += "\nfile 'comment_" + i + ".png'";
-        inputFileText += "\nduration 5";
+        inputFileText += "\nduration " + audioStreamLengths[i + 1];
 
         if (i == totalItems - 1) {
             //add on the file name one more time, because the program requires it
@@ -161,11 +178,38 @@ function allProcessed() {
 
         exec('ffmpeg -f concat -i ./processed/input.txt -vsync vfr -pix_fmt yuv420p ./processed/output.mp4 -y',
             function (error, stdout, stderr) {
-                console.log('stdout: ' + stdout);
-                console.log('stderr: ' + stderr);
                 if (error !== null) {
                     console.log('exec error: ' + error);
                 }
+
+                //add all the sounds together
+                let audioFileText = "file 'title.wav'"
+                for (let i = 0; i < totalItems - 1; i++) {
+                    audioFileText += "\nfile 'comment_" + i + ".wav'";
+                }
+
+                fs.writeFile("./processed/audioList.txt", audioFileText, function(err) {
+                    if (err) console.log(err);
+                    
+                    exec('ffmpeg -f concat -i ./processed/audioList.txt ./processed/output.wav -y',
+                        function (error, stdout, stderr) {
+                            if (error !== null) {
+                                console.log('exec error: ' + error);
+                            }
+            
+                            //All done, now add everything together
+                            exec('ffmpeg -i ./processed/output.wav -i ./processed/output.mp4 ./processed/final_video.mp4 -y',
+                                function (error, stdout, stderr) {
+                                    if (error !== null) {
+                                        console.log('exec error: ' + error);
+                                    }
+                                    
+                                    console.log("Success!");
+                                }
+                            );
+                        }
+                    );
+                });
             }
         );
     });
