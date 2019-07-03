@@ -25,6 +25,10 @@ var soundProcessed = 0;
 var totalItems = -1;
 //all voice lengths
 var audioStreamLengths = [];
+//the text to be put into the description
+var textDescriptions = [];
+//the source url
+var url = "";
 
 requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(err, res, body) {
     body = JSON.parse(body);
@@ -46,7 +50,9 @@ requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(e
     let cleanText = getCleanText(posts[randomPostIndex].data.title);
     let displayText = getDisplayText(cleanText, posts[randomPostIndex].data);
 
-    saveImage('processed/title.png', displayText);
+    url = posts[randomPostIndex].data.url;
+
+    saveImage('processed/title.png', displayText, 0);
 
     saveSpeech('processed/title.wav', cleanText, 0)
 
@@ -79,19 +85,21 @@ function getComments(post) {
             let cleanText = getCleanText(text);
             let displayText = getDisplayText(cleanText, comments[i].data);
 
-            saveImage('processed/comment_' + i + '.png', displayText);
+            saveImage('processed/comment_' + i + '.png', displayText, i + 1);
 
             saveSpeech('processed/comment_' + i + '.wav', cleanText, i + 1);
         }
     });
 }
 
-function saveImage(fileName, displayText) {
+function saveImage(fileName, displayText, index) {
     //create image
     let options = {
         color: 'white',
         backgroundColor: 'black'
     };
+
+    textDescriptions[index] = displayText;
 
     fs.writeFile(fileName, text2png(displayText, options), function (err) {
         if (err) console.log(err);
@@ -156,6 +164,18 @@ function soundSaved() {
 }
 
 function allProcessed() {
+    //create description
+    let description = "Meet The Experts Of Reddit - Your home for the best Ask reddit threads and expertly read advice. " +
+                        "You should find our videos humorous, funny, and perfect time savers.";
+    description += "\n\nSource: " + url + "\n\n";
+    for (let i = 0; i < totalItems; i++) {
+        description += textDescriptions[i] + "\n\n";
+    }
+    description += "\n\n________________________________________________________\n\nThanks for watching!";
+    fs.writeFile("./processed/description.txt", description, function(err) {
+        if (err) console.log(err);
+    });
+
     //create input.txt
     //this file will contain a list of file names with durations
     let inputFileText = "file 'title.png'"
