@@ -73,6 +73,11 @@ function getComments(post) {
 
         for (let i = 0; i < commentAmount; i++) {
             let text = comments[i].data.body;
+            if (text == undefined) {
+                totalItems --;
+                console.log("Ignored comment " + i);
+                continue;
+            }
 
             var urls = text.match(/\bhttps?:\/\/\S+/gi);
     
