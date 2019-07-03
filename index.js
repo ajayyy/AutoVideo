@@ -49,12 +49,13 @@ requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(e
 
     let cleanText = getCleanText(posts[randomPostIndex].data.title);
     let displayText = getDisplayText(cleanText, posts[randomPostIndex].data);
+    let spokenText = getSpokenText(cleanText);
 
     url = posts[randomPostIndex].data.url;
 
     saveImage('processed/title.png', displayText, 0);
 
-    saveSpeech('processed/title.wav', cleanText, 0)
+    saveSpeech('processed/title.wav', spokenText, 0)
 
     getComments(posts[randomPostIndex]);
 });
@@ -89,10 +90,11 @@ function getComments(post) {
     
             let cleanText = getCleanText(text);
             let displayText = getDisplayText(cleanText, comments[i].data);
+            let spokenText = getSpokenText(cleanText);
 
             saveImage('processed/comment_' + i + '.png', displayText, i + 1);
 
-            saveSpeech('processed/comment_' + i + '.wav', cleanText, i + 1);
+            saveSpeech('processed/comment_' + i + '.wav', spokenText, i + 1);
         }
     });
 }
@@ -193,6 +195,7 @@ function allProcessed() {
     inputFileText += "\nfile 'banner.png'";
     inputFileText += "\nduration 20";
     inputFileText += "\nfile 'banner.png'";
+    inputFileText += "\nduration 20";
 
     fs.writeFile("./processed/input.txt", inputFileText, function(err) {
         if (err) console.log(err);
@@ -239,7 +242,11 @@ function allProcessed() {
 function getCleanText(text) {
     let cleanText = customFilter.clean(text);
 
-    var swears = cleanText.match(/\b (\+\-\~12)+/gi);
+    return cleanText;
+}
+
+function getSpokenText(cleanText) {
+    var swears = cleanText.match(/(\+\-\~12)+/gi);
 
     if (swears != null) {
         for (let i = 0; i < swears.length; i++) {
@@ -251,8 +258,7 @@ function getCleanText(text) {
 }
 
 function getDisplayText(cleanText, comment) {
-    let displayText = cleanText.replace(/\b\+\-\~12/gi, "*");
-    displayText = displayText.replace(/\b \+\-\~12/gi, " *");
+    let displayText = cleanText.replace(/\+\-\~12/gi, "*");
     displayText = stringDivider(displayText, 70, "\n");
 
     displayText += "\n\n - " + comment.author;
