@@ -48,7 +48,7 @@ requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(e
 
     saveImage('processed/title.png', displayText);
 
-    saveSpeech('processed/title.wav', cleanText)
+    saveSpeech('processed/title.wav', cleanText, 0)
 
     getComments(posts[randomPostIndex]);
 });
@@ -81,10 +81,7 @@ function getComments(post) {
 
             saveImage('processed/comment_' + i + '.png', displayText);
 
-            //ffmpeg -f concat -i input.txt -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -vsync vfr -pix_fmt yuv420p output.mp4
-            //ffmpeg -f concat -i input.txt -vsync vfr -pix_fmt yuv420p output.mp4
-    
-            saveSpeech('processed/comment_' + i + '.wav', cleanText);
+            saveSpeech('processed/comment_' + i + '.wav', cleanText, i + 1);
         }
     });
 }
@@ -119,7 +116,7 @@ function imageSaved() {
     }
 }
 
-function saveSpeech(fileName, cleanText) {
+function saveSpeech(fileName, cleanText, index) {
     let synthesizeParams = {
         text: cleanText,
         accept: 'audio/wav',
@@ -133,7 +130,7 @@ function saveSpeech(fileName, cleanText) {
 
         writeStream.on('finish', function(){
             getAudioDurationInSeconds(fileName).then((duration) => {
-                audioStreamLengths.push(duration);
+                audioStreamLengths[index] = duration;
                 console.log(fileName + " " + duration)
     
                 soundSaved();
