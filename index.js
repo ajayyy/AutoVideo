@@ -67,7 +67,7 @@ function getComments(post) {
 
         let comments = response[1].data.children;
 
-        let commentAmount = Math.min(30, comments.length);
+        let commentAmount = Math.min(50, comments.length);
 
         totalItems = commentAmount + 1;
 
@@ -184,7 +184,7 @@ function allProcessed() {
         inputFileText += "\nfile 'comment_" + i + ".png'";
         inputFileText += "\nduration " + audioStreamLengths[i + 1];
 
-        if (i == totalItems - 1) {
+        if (i == totalItems - 2) {
             //add on the file name one more time, because the program requires it
             inputFileText += "\nfile 'comment_" + i + ".png'";
         }
