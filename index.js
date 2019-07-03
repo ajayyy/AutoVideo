@@ -183,12 +183,11 @@ function allProcessed() {
     for (let i = 0; i < totalItems - 1; i++) {
         inputFileText += "\nfile 'comment_" + i + ".png'";
         inputFileText += "\nduration " + audioStreamLengths[i + 1];
-
-        if (i == totalItems - 2) {
-            //add on the file name one more time, because the program requires it
-            inputFileText += "\nfile 'comment_" + i + ".png'";
-        }
     }
+    //add on end screen
+    inputFileText += "\nfile 'banner.png'";
+    inputFileText += "\nduration 20";
+    inputFileText += "\nfile 'banner.png'";
 
     fs.writeFile("./processed/input.txt", inputFileText, function(err) {
         if (err) console.log(err);
