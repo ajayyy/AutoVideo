@@ -30,14 +30,17 @@ var textDescriptions = [];
 //the source url
 var url = "";
 
+//find previous videos pulled
+var previousVideos = fs.readFileSync('./processed/previousVideos.txt').split("\n");
+
 requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(err, res, body) {
     body = JSON.parse(body);
 
     let posts = body.data.children;
 
     for (let i = 0; i < posts.length; i++) {
-        //remove mod posts
-        if (posts[i].data.distinguished == "moderator") {
+        //remove mod posts and duplicates
+        if (posts[i].data.distinguished == "moderator" || previousVideos.includes(posts[i].data.url)) {
             //delete this one
             posts.splice(i, 1);
             //try at this index again
@@ -183,6 +186,11 @@ function allProcessed() {
         if (err) console.log(err);
     });
 
+    //add this to the complete videos list
+    fs.appendFile("./processed/previousVideos.txt", url, function(err) { 
+        if (err) console.log(err);
+    });
+
     //create input.txt
     //this file will contain a list of file names with durations
     let inputFileText = "file 'title.png'"
@@ -193,9 +201,9 @@ function allProcessed() {
     }
     //add on end screen
     inputFileText += "\nfile 'banner.png'";
-    inputFileText += "\nduration 20";
+    inputFileText += "\nduration 10";
     inputFileText += "\nfile 'banner.png'";
-    inputFileText += "\nduration 20";
+    inputFileText += "\nduration 10";
 
     fs.writeFile("./processed/input.txt", inputFileText, function(err) {
         if (err) console.log(err);
