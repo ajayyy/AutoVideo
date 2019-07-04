@@ -48,6 +48,11 @@ requests.get('https://www.reddit.com/r/askreddit/top.json?t=all', {}, function(e
         }
     }
 
+    if (posts.length == 0) {
+        console.log("NO MORE VIDEOS!");
+        return;
+    }
+
     let randomPostIndex = Math.floor(Math.random() * body.data.children.length);
 
     let cleanText = getCleanText(posts[randomPostIndex].data.title);
