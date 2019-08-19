@@ -1,10 +1,11 @@
 # AutoVideo
 
-Small node.js program that will auto generate a text-to-speech video reading out reddit.com/r/askreddit threads using IBM Watson's API.
+Small node.js program that will auto generate a text-to-speech video reading out reddit.com/r/askreddit threads using IBM Watson's API. The text is displayed on screen while being read. It also censors cursing.
 
-To run simply
+To run simply use
 
-`npm install`
-`npm start`
+```npm install```
+
+```npm start```
 
 Ffmpeg is required to be installed in your path.
